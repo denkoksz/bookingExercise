@@ -1,0 +1,1345 @@
+swagger: '2.0'
+info:
+  title: RESERVATION SERVICE REST API
+  version: "1.0.0"
+  description: |
+    API for the Reservation Service. The API covers the functionality to create,
+    read and update reservations and their metadata stored in the DAM metadata store,
+    add and remove assets from the reservations.
+
+    The API is based on REST and only consumes JSON requests.
+
+    **Security**
+
+    This API is protected via the standard OIDC authentication provided by MIT. In order to use the API, an
+    access token must be retrieved first and then used in the Authorization header with "Bearer [Access Token]".
+
+
+host: localhost:8080
+schemes:
+  - http
+basePath: /
+consumes:
+  - application/json
+produces:
+  - application/json
+tags:
+  - name: Assets
+    description: All resources for managing assets that are part of reservations
+  - name: Reservations
+    description: All resources for managing reservations
+  - name: Contacts
+    description: All resources for managing contacts that are port of reservations
+  - name: Documents
+    description: All resources for managing documents attached to reservations
+  - name: Configuration
+    description: All resources for retrieving necessary objects/configuration to perform operations on contacts/asset/reservation resources
+
+securityDefinitions:
+  OAuth2ClientCredentialsSecurity:
+    type: oauth2
+    flow: application
+    tokenUrl: https://auth-test.com/token
+    scopes:
+      openid: openid scope
+
+security:
+  - OAuth2ClientCredentialsSecurity: []
+
+paths:
+  /:
+    get:
+      summary: Endpoint to check if the APIs are available
+      responses:
+        200:
+          $ref: '#/responses/RootResponse'
+        default:
+          description: If no answer returned, that means that the application is not working
+
+  /api/v1/{app}/assets:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/offset'
+      - $ref: '#/parameters/limit'
+
+    get:
+      summary: Retrieves a list of assetIds that are used in reservations
+      responses:
+        200:
+          $ref: '#/responses/AssetsResponse'
+        default:
+          $ref:  '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Assets
+
+
+  /api/v1/{app}/assets/{assetId}/reservations:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/assetId'
+      - $ref: '#/parameters/offset'
+      - $ref: '#/parameters/limit'
+    get:
+      summary: Retrieves all reservations which contain the asset specified by assetId
+      produces:
+        - application/json
+      responses:
+        '200':
+          $ref: '#/responses/AssetReservationsResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Assets
+
+  /api/v1/{app}/assets/{assetId}/freetermquantities:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/assetId'
+    get:
+      parameters:
+        - $ref: '#/parameters/startDate'
+        - $ref: '#/parameters/endDate'
+      summary:  Give back all possible free term quantity combinations for the given term.
+      produces:
+        - application/json
+      responses:
+        '200':
+          $ref: '#/responses/FreeTermQuantitiesResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Assets
+
+  /api/v1/{app}/reservations:
+    parameters:
+      - $ref: '#/parameters/app'
+    get:
+      parameters:
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+      summary: Retrieves a list of reservations defined by the query parameters
+      responses:
+        200:
+          $ref: '#/responses/ReservationsResponse'
+        default:
+          $ref:  '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+    post:
+      summary: Creates a new reservation.
+      parameters:
+        - in: body
+          name: body
+          description: The body of the creatable reservation
+          schema:
+            $ref: '#/definitions/CreateReservationBody'
+      responses:
+        201:
+          $ref: '#/responses/ReservationResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+
+  /api/v1/{app}/reservations/{reservationId}:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+      - name: embed
+        in: query
+        description: the embedded parameters
+        type: string
+    get:
+      summary:   Retrieve the reservation as specified by the reservationId path parameter
+      responses:
+        200:
+          $ref: '#/responses/ReservationResponse'
+        default:
+          $ref:  '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+    delete:
+      summary: Delete the reservation specified by the reservationId path parameter
+      responses:
+        200:
+          description: Reservation deleted
+        default:
+          $ref:  '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+
+  /api/v1/{app}/reservations/{reservationId}/assets:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+    get:
+      summary: Retrieves a list of all assets that belong to the reservation specified by reservationId
+      parameters:
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+      responses:
+        '200':
+          $ref: '#/responses/ReservationAssetsResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+    post:
+      summary: Add an asset to a reservation specified by reservationId
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/AddAssetBody'
+      responses:
+        201:
+          description: Asset is added to the reservation
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+
+  /api/v1/{app}/reservations/{reservationId}/assets/{assetId}:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+      - $ref: '#/parameters/assetId'
+    get:
+      summary: Retrieves an asset with the given assetId that belongs to the reservation specified by reservationId.
+      responses:
+        '200':
+          $ref: '#/responses/ReservationAssetResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+    delete:
+      summary: Delete an asset from a reservation
+      responses:
+        200:
+          description: asset is deleted from reservation
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+
+  /api/v1/{app}/reservations/{reservationId}/contacts:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+    get:
+      summary: Retrieves contacts of a reservation
+      responses:
+        '200':
+          $ref: '#/responses/GetContactsResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Contacts
+    post:
+      summary: Add a contact to a reservation specified by reservation id
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/AddContactBody'
+      responses:
+        201:
+          description: Contact is added to the reservation
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Contacts
+
+  /api/v1/{app}/reservations/{reservationId}/contacts/{contactId}:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+      - $ref: '#/parameters/contactId'
+    delete:
+      summary: Deletes a contact from the reservation
+      responses:
+        '200':
+          description: Success
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Contacts
+
+  /api/v1/{app}/reservations/{reservationId}/documents:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+    get:
+      summary: Get the list of documents of a reservation specified by reservation id
+      responses:
+        '200':
+          $ref: '#/responses/DocumentsResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Documents
+    post:
+      summary: Add a document to a reservation specified by reservation id
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/AddDocumentBody'
+      responses:
+        '201':
+          $ref: '#/responses/DocumentResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Documents
+
+  /api/v1/{app}/reservations/{reservationId}/documents/{documentId}:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/reservationId'
+      - $ref: '#/parameters/documentId'
+    get:
+      summary: Get the list of documents of a reservation specified by reservation id
+      responses:
+        '200':
+          $ref: '#/responses/DocumentResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Documents
+    delete:
+      summary: Remove the specific document from a reservation specified by ReservationId
+      responses:
+        '200':
+          description: Success
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Documents
+
+  /api/v1/{app}/reservations/facets:
+    parameters:
+      - $ref: '#/parameters/app'
+      - name: query
+        in: query
+        description: the embedded parameters
+        type: string
+    get:
+      summary: Retrieves the facet values for reservations
+      responses:
+        200:
+          $ref: '#/responses/FacetsResponse'
+        default:
+          $ref:  '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+
+  /api/v1/{app}/reservations/suggestions:
+    parameters:
+      - $ref: '#/parameters/app'
+    get:
+      summary: Retrieves the list of the configured suggestions
+      produces:
+        - application/json
+      responses:
+        '200':
+          $ref: '#/responses/GetReservationSuggestionsResponse'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Reservations
+
+  /api/v1/{app}/config/{fieldSetId}/fields:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/fieldSetId'
+    get:
+      summary: Get all available fields of a given fieldset
+      responses:
+        '200':
+          description: the response
+          schema:
+            $ref: '#/definitions/Fieldset'
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+      tags:
+        - Configuration
+
+  /api/v1/{app}/config/{fieldSetId}/fields/{fieldId}:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/fieldSetId'
+      - $ref: '#/parameters/fieldId'
+    get:
+      summary: Get single field
+      description: Retrieve detailed information about a single field and its configuration.
+      tags:
+        - Configuration
+      responses:
+        200:
+          description: Field information was successfully retrieved
+          schema:
+            $ref:  '#/definitions/Field'
+        404:
+          description: Field Id or FieldSetId can not be found
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+
+  /api/v1/{app}/config/{fieldSetId}/fields/{fieldId}/options:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/fieldSetId'
+      - $ref: '#/parameters/fieldId'
+    get:
+      summary: Get options of a choice field
+      description: Only available if field is of type choice. Retreives the first level of options that are linked to the field
+      tags:
+        - Configuration
+      responses:
+        200:
+          description: Options were successfully retrieved
+          schema:
+            $ref:  '#/definitions/Options'
+        400:
+          description: Field is not of type choice
+        404:
+          description: Field Id can not be found
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+
+  /api/v1/{app}/config/{fieldSetId}/fields/{fieldId}/options/{optionId}:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/fieldSetId'
+      - $ref: '#/parameters/fieldId'
+      - $ref: '#/parameters/optionId'
+    get:
+      summary: Get option
+      description: |
+        Only available if field is of type choice. Retrieves a specific option from the first level of the Optionset
+      tags:
+        - Configuration
+      responses:
+        200:
+          description: Options were successfully retrieved
+          schema:
+            $ref:  '#/definitions/Options'
+        400:
+          description: Field is not of type choice
+        404:
+          description: Field Id or Option Id can not be found
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+
+  /api/v1/{app}/config/{fieldSetId}/fields/{fieldId}/options/{optionId}/option:
+    parameters:
+      - $ref: '#/parameters/app'
+      - $ref: '#/parameters/fieldSetId'
+      - $ref: '#/parameters/fieldId'
+      - $ref: '#/parameters/optionId'
+    get:
+      summary: Get child options of an option
+      description: |
+        Retrieves the second level of options that belong the the option selected on the first level. The schema of this resources can be recusively used up to 15 levels in order to retrieve deeper levels of options in large Optionsets. This should be used in order to browse Optionsets by their structure.
+      tags:
+        - Configuration
+      responses:
+        200:
+          description: Options where successfully retrieved
+          schema:
+            $ref:  '#/definitions/Options'
+        400:
+          description: Field is not of type choice
+        404:
+          description: Field Id or Option Id can not be found
+        default:
+          $ref: '#/responses/ReservationServiceErrorResponse'
+
+parameters:
+  app:
+    name: app
+    in: path
+    required: true
+    description: The application
+    type: string
+  fieldSetId:
+    name: fieldSetId
+    in: path
+    required: true
+    description: the id of the fieldset
+    type: string
+  fieldId:
+    name: fieldId
+    in: path
+    description: ID of a field
+    type: string
+    required: true
+  optionId:
+    name: optionId
+    in: path
+    description: ID of an option
+    type: string
+    required: true
+  reservationId:
+    name: reservationId
+    in: path
+    required: true
+    description: the reservation id
+    type: string
+  documentId:
+    name: documentId
+    in: path
+    required: true
+    description: the id of a document
+    type: string
+  assetId:
+    name: assetId
+    in: path
+    required: true
+    description: the asset id
+    type: string
+  contactId:
+    name: contactId
+    in: path
+    required: true
+    description: the contact id
+    type: string
+  limit:
+    name: limit
+    in: query
+    required: false
+    type: integer
+    format: int32
+    default: 10
+  offset:
+    name: offset
+    in: query
+    required: false
+    type: integer
+    format: int32
+    default: 0
+  startDate:
+    name: startDate
+    in: query
+    required: true
+    type: string
+  endDate:
+    name: endDate
+    in: query
+    required: true
+    type: string
+
+definitions:
+  Id:
+    description: The unique identifier
+    type: string
+
+  Type:
+    description: The reservation type
+    type: string
+    enum:
+      - ITSH
+      - COUNTRY
+
+  FreeTermQuantity:
+    type: object
+    description: Represent the quantity and Term of the possible reservations
+    required:
+      - startDate
+      - endDate
+      - quantity
+    properties:
+      startDate:
+        type: string
+        example: "2020-10-20"
+      endDate:
+        type: string
+        example: "2020-10-25"
+      quantity:
+        type: integer
+        example: 5
+
+  FreeTermQuantities:
+    type: object
+    description: Set of reservations they are available
+    properties:
+      total:
+        example: 1
+        type: integer
+        format: int32
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/FreeTermQuantity'
+
+  Link:
+    type: object
+    description: HATEOS link
+    required:
+      - href
+    properties:
+      href:
+        type: string
+
+  Fieldset:
+    type: object
+    description: Set of fields that are available
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Field'
+  Field:
+    type: object
+    description: Representation of a field all of its attributes. If the field is of type choise, the _meta element will contain a link to the options of that field
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      id:
+        type: string
+        example: "TF-1JE2TQ6A91H11"
+      type:
+        type: string
+        enum:
+          - text
+          - integer
+          - long
+          - float
+          - boolean
+          - date
+          - daterange
+          - link
+          - choice
+          - contact
+          - asset
+        example: "choice"
+      label:
+        type: string
+        example: "Title"
+      hintText:
+        type: string
+        example: "My New Reservation"
+      readOnly:
+        type: boolean
+        example: "false"
+      multiValue:
+        type: boolean
+        example: "false"
+      stringMaxLengthValue:
+        type: integer
+        example: "2000"
+      integerMinValue:
+        type: integer
+        example: "1900"
+      integerMaxValue:
+        type: integer
+        example: "2800"
+      longMinValue:
+        type: integer
+        format: int64
+        example: "70000"
+      longMaxValue:
+        type: integer
+        format: int64
+        example: "900000"
+
+  Option:
+    type: object
+    description: Option representaing a single possible value for choice fields
+    required:
+      - id
+      - value
+      - selectable
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      id:
+        type: string
+        example: "TO-1JWE57P6S1W11"
+      value:
+        type: string
+        example: "21Days"
+      selectable:
+        type: boolean
+        example: "true"
+      _embedded:
+        type: object
+        properties:
+          path:
+            type: array
+            items:
+              $ref: '#/definitions/Option'
+
+  Options:
+    type: object
+    description: A set of options retrieved either via search or as childs of a specific option
+    required:
+      - items
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Option'
+
+  ContactValue:
+    type: object
+    description: a Contact value DTO
+    required:
+      - id
+      - name
+    properties:
+      id:
+        $ref: '#/definitions/Id'
+      name:
+        type: string
+
+  Root:
+    type: object
+    properties:
+      status:
+        type: string
+
+  Assets:
+    type: object
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      total:
+        type: integer
+        format: int32
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Asset'
+
+  Asset:
+    type: object
+    required:
+      - _meta
+      - id
+    properties:
+      _meta:
+        type: object
+        required:
+          - links
+        properties:
+          links:
+            type: object
+            required:
+              - assets
+              - assetReservations
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+              assets:
+                $ref: '#/definitions/Link'
+              assetReservations:
+                $ref: '#/definitions/Link'
+      id:
+        $ref: '#/definitions/Id'
+
+  AssetReservations:
+    type: object
+    required:
+      - _meta
+      - items
+      - total
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      total:
+        type: integer
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/AssetReservation'
+
+
+  AssetReservation:
+    type: object
+    required:
+      - _meta
+      - id
+      - type
+      - status
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            required:
+              - reservations
+              - assets
+              - self
+            properties:
+              reservations:
+                $ref: '#/definitions/Link'
+              assets:
+                $ref: '#/definitions/Link'
+              self:
+                $ref: '#/definitions/Link'
+      id:
+        $ref: '#/definitions/Id'
+      type:
+        $ref: '#/definitions/Type'
+      status:
+        $ref: '#/definitions/ReservationStatus'
+      title:
+        type: string
+      created:
+        type: string
+      lastModified:
+        type: string
+      assetsCount:
+        type: integer
+        format: int32
+
+  ReservationsLinks:
+    type: object
+    description: Links node for the Metadata of the Reservations Entity
+    required:
+      - next
+      - self
+      - suggestions
+      - facets
+    properties:
+      next:
+        $ref: '#/definitions/Link'
+      self:
+        $ref: '#/definitions/Link'
+      suggestions:
+        $ref: '#/definitions/Link'
+      facets:
+        $ref: '#/definitions/Link'
+
+  ReservationsMeta:
+    type: object
+    description: Meta entity information for the Reservations Entity
+    required:
+      - links
+    properties:
+      links:
+        $ref: '#/definitions/ReservationsLinks'
+
+  ReservationMeta:
+    type: object
+    description: Meta entity information for the Reservation Entity
+    required:
+      - links
+    properties:
+      links:
+        $ref: '#/definitions/ReservationLinks'
+
+  ReservationLinks:
+    type: object
+    description: Links node for the Metadata of the Reservation Entity
+    required:
+      - contacts
+      - assets
+      - self
+    properties:
+      reservations:
+        $ref: '#/definitions/Link'
+      assets:
+        $ref: '#/definitions/Link'
+      contacts:
+        $ref: '#/definitions/Link'
+      documents:
+        $ref: '#/definitions/Link'
+      self:
+        $ref: '#/definitions/Link'
+      metadata:
+        $ref: '#/definitions/Link'
+
+
+  FacetsMeta:
+    type: object
+    description: Meta entity information for the Facets
+    required:
+      - links
+    properties:
+      links:
+        $ref: '#/definitions/Link'
+
+  Reservations:
+    type: object
+    description: an array of reservation entities
+    required:
+      - _meta
+      - total
+      - items
+    properties:
+      _meta:
+        $ref: '#/definitions/ReservationsMeta'
+      total:
+        type: integer
+        format: int32
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Reservation'
+
+  Reservation:
+    type: object
+    description: A reservation
+    required:
+      - _meta
+      - _embedded
+      - id
+      - type
+      - status
+      - created
+      - lastModified
+      - description
+      - title
+    properties:
+      _meta:
+        $ref: '#/definitions/ReservationMeta'
+      _embedded:
+        type: object
+      id:
+        $ref: '#/definitions/Id'
+      type:
+        $ref: '#/definitions/Type'
+      status:
+        $ref: '#/definitions/ReservationStatus'
+      created:
+        type: string
+      lastModified:
+        type: string
+      description:
+        type: string
+      title:
+        type: string
+      assetsCount:
+        type: integer
+      contactsCount:
+        type: integer
+      documentsCount:
+        type: integer
+
+  ReservationStatus:
+    type: string
+    enum:
+      - NOT STARTED
+      - DEVELOPMENT
+      - PRE-RESERVATION
+      - RESERVATION
+      - DELIVERED
+      - READY TO AIR
+
+  Facets:
+    type: object
+    description: an array of facet entities
+    required:
+      - _meta
+      - total
+      - items
+    properties:
+      _meta:
+        $ref: '#/definitions/FacetsMeta'
+      total:
+        type: integer
+        description: The total number of the returned facets
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Facet'
+
+  Facet:
+    type: object
+    description: A facet
+    required:
+      - field
+      - title
+      - values
+    properties:
+      field:
+        type: string
+      title:
+        type: string
+      values:
+        type: array
+        items:
+          $ref: '#/definitions/FacetItem'
+
+  FacetItem:
+    type: object
+    description: A facet item
+    required:
+      - title
+      - count
+      - value
+    properties:
+      title:
+        type: string
+      count:
+        type: string
+      value:
+        type: string
+
+  DocumentMeta:
+    type: object
+    description: structure of the documents list meta
+    required:
+      - links
+    properties:
+      links:
+        type: object
+        required:
+          - self
+        properties:
+          self:
+            $ref: '#/definitions/Link'
+
+  Documents:
+    type: object
+    description: The list of the documents
+    required:
+      - _meta
+    properties:
+      _meta:
+        type: object
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Document'
+
+  Document:
+    type: object
+    description: Structure of a document
+    required:
+      - _meta
+      - id
+      - documentType
+      - title
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      id:
+        $ref: '#/definitions/Id'
+      documentType:
+        type: string
+      title:
+        type: string
+      resource:
+        type: string
+
+  AddDocumentBody:
+    type: object
+    description: The body definition
+    required:
+      - id
+      - name
+    properties:
+      id:
+        $ref: '#/definitions/Id'
+      name:
+        type: string
+
+  ReservationAsset:
+    type: object
+    description: An asset that is part of a reservation
+    properties:
+      _meta:
+        $ref: '#/definitions/ReservationAssetMeta'
+      id:
+        $ref: '#/definitions/Id'
+
+  ReservationAssetMeta:
+    type: object
+    description: Structure of the Reservation's Asset Metadata
+    properties:
+      links:
+        type: object
+        properties:
+          assets:
+            $ref: '#/definitions/Link'
+          self:
+            $ref: '#/definitions/Link'
+          reservations:
+            $ref: '#/definitions/Link'
+
+  ReservationAssets:
+    type: object
+    description: The assets of a reservation
+    properties:
+      _meta:
+        $ref: '#/definitions/ReservationAssetsMeta'
+      total:
+        type: integer
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/ReservationAsset'
+
+  ReservationAssetsMeta:
+    type: object
+    description: Structure of the Reservation's Assets Metadata
+    properties:
+      links:
+        type: object
+        properties:
+          self:
+            $ref: '#/definitions/Link'
+          next:
+            $ref: '#/definitions/Link'
+
+  CreateReservationBody:
+    type: object
+    description: The body definition
+    required:
+      - type
+    properties:
+      type:
+        type: string
+      title:
+        type: string
+
+  AddAssetBody:
+    type: object
+    description: The body definition
+    required:
+      - id
+      - quantity
+      - startDate
+      - endDate
+    properties:
+      id:
+        type: string
+      quantity:
+        type: integer
+      startDate:
+        pattern: '\d{4}-\d{1,2}-\d{1,2}'
+        type: string
+      endDate:
+        pattern: '\d{4}-\d{1,2}-\d{1,2}'
+        type: string
+
+  AddContactBody:
+    type: object
+    description: The contact body definition
+    required:
+      - id
+    properties:
+      id:
+        type: string
+  Contacts:
+    type: object
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      total:
+        type: integer
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Contact'
+
+  Contact:
+    type: object
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+          type:
+            type: string
+      id:
+        $ref: '#/definitions/Id'
+      created:
+        type: string
+      modified:
+        type: string
+      name:
+        type: string
+
+  ReservationSuggestions:
+    type: object
+    properties:
+      _meta:
+        type: object
+        properties:
+          links:
+            type: object
+            properties:
+              self:
+                $ref: '#/definitions/Link'
+      fulltextSuggestions:
+        type: array
+        items:
+          type: object
+      filterSuggestions:
+        type: array
+        items:
+          $ref: '#/definitions/FilterSuggestion'
+
+  FilterSuggestion:
+    type: object
+    properties:
+      displayName:
+        type: string
+      field:
+        type: string
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/FilterSuggestionItem'
+
+  FilterSuggestionItem:
+    type: object
+    properties:
+      displayName:
+        type: string
+      value:
+        type: string
+
+
+  ReservationServiceError:
+    type: object
+    description: Structure of the Reservation Service error
+    required:
+      - errorCode
+      - errorMessage
+      - errorId
+    properties:
+      errorCode:
+        type: string
+        pattern: /[DEITW]\d{4}/
+        description: The error code
+      errorMessage:
+        description: Description of the error
+        type: string
+      errorId:
+        description: The id of the error
+        type: string
+
+responses:
+  RootResponse:
+    description: Response of the root API
+    schema:
+      $ref: "#/definitions/Root"
+  AssetsResponse:
+    description: Response of the getAssets API
+    schema:
+      $ref: "#/definitions/Assets"
+
+  AssetResponse:
+    description: Response of the getAsset API
+    schema:
+      $ref: "#/definitions/Asset"
+
+  AssetReservationsResponse:
+    description: Response of the get reservations of an assetId API
+    schema:
+      $ref: "#/definitions/AssetReservations"
+
+  FreeTermQuantitiesResponse:
+    description: Response of possible reservations to an asset
+    schema:
+      $ref: "#/definitions/FreeTermQuantities"
+
+  FreeTermQuantityResponse:
+    description: Response of possible reservation to an asset
+    schema:
+      $ref: "#/definitions/FreeTermQuantity"
+
+  ReservationsResponse:
+    description: Response of the getReservations API
+    schema:
+      $ref: "#/definitions/Reservations"
+
+  ReservationResponse:
+    description: Response of the get reservation by ID API
+    schema:
+      $ref: "#/definitions/Reservation"
+
+  FacetsResponse:
+    description: Response of the getAgreements API
+    schema:
+      $ref: "#/definitions/Facets"
+
+  DocumentsResponse:
+    description: The response of the get documents list
+    schema:
+      $ref: "#/definitions/Documents"
+
+  DocumentResponse:
+    description: The response of the get documents list
+    schema:
+      $ref: "#/definitions/Document"
+
+  ReservationAssetResponse:
+    description: The response of the get Reservation Asset API
+    schema:
+      $ref: "#/definitions/ReservationAsset"
+
+  ReservationAssetsResponse:
+    description: The response of the get Reservations Assets API
+    schema:
+      $ref: "#/definitions/ReservationAssets"
+
+  GetContactsResponse:
+    description: The contacts
+    schema:
+      $ref: "#/definitions/Contacts"
+
+  GetReservationSuggestionsResponse:
+    description: The list of possible reservations suggestions
+    schema:
+      $ref: "#/definitions/ReservationSuggestions"
+
+  ReservationServiceErrorResponse:
+    description: An unexpected error occured.
+    schema:
+      $ref: "#/definitions/ReservationServiceError"

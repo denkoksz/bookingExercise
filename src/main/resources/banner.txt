@@ -1,0 +1,11 @@
+ ______     ______
+|  __  |   |  ____|
+| |__| |   | |____
+|  ____|   |____  |
+| |         ____| |
+|_|        |______|
+
+Spring Boot Version     :	${spring-boot.formatted-version}
+Active profiles         :	${spring.profiles.active:${spring.profiles.default}}
+Application Server Port :	${server.port:8080}
+Management Server Port  :	${management.port:${server.port}}
